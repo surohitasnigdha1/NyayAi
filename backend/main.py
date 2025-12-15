@@ -1,3 +1,16 @@
+import os
+from dotenv import load_dotenv
+
+# Load .env file
+load_dotenv()
+
+# Access the token
+HUGGINGFACEHUB_API_TOKEN = os.getenv("HUGGINGFACEHUB_API_TOKEN")
+
+if not HUGGINGFACEHUB_API_TOKEN:
+    raise RuntimeError("HUGGINGFACEHUB_API_TOKEN not found in .env")
+
+
 from fastapi import FastAPI, UploadFile, File
 import pdfplumber
 
