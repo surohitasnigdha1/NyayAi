@@ -1,17 +1,8 @@
 import os
 from dotenv import load_dotenv
 
-# Load .env file
-load_dotenv()
-
-# Access the token
-HUGGINGFACEHUB_API_TOKEN = os.getenv("HUGGINGFACEHUB_API_TOKEN")
-
-if not HUGGINGFACEHUB_API_TOKEN:
-    raise RuntimeError("HUGGINGFACEHUB_API_TOKEN not found in .env")
-
-
 from fastapi import FastAPI, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware
 import pdfplumber
 
 # Import all agents
@@ -21,10 +12,32 @@ from agents.simplify_agent import run as simplify_agent
 from agents.risk_agent import run as risk_agent
 from agents.next_steps_agent import run as next_agent
 
+load_dotenv()
+
+HUGGINGFACEHUB_API_TOKEN = os.getenv("HUGGINGFACEHUB_API_TOKEN")
+
+if not HUGGINGFACEHUB_API_TOKEN:
+    raise RuntimeError("HUGGINGFACEHUB_API_TOKEN not found in environment or .env")
+
+
 app = FastAPI(
     title="Legal Document Analyzer",
     description="Backend API with PDF extraction and multi-agent analysis",
     version="1.0.0"
+)
+
+# Allow frontend (Next.js / React dev server) to talk to this API
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Root endpoint
