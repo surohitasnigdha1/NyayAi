@@ -1,7 +1,7 @@
 # NyayAI – Legal Document Intelligence System
 
 
- demo link:https://drive.google.com/file/d/1QjYkVo4M-r604SiI8g7J2cjvfdbqam2O/view?usp=sharing
+ Demo link: https://drive.google.com/file/d/1QjYkVo4M-r604SiI8g7J2cjvfdbqam2O/view?usp=sharing
 
 NyayAI is a **multi‑agent AI system** designed to help users understand legal documents **before signing them**. It analyzes legal PDFs, simplifies complex clauses, detects risks, and enables **multilingual, voice‑enabled question answering** over the document.
 
