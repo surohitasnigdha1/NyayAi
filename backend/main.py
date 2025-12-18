@@ -8,6 +8,13 @@ from fastapi.responses import StreamingResponse, JSONResponse
 from pydantic import BaseModel
 import pdfplumber
 from gtts import gTTS
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
+from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_JUSTIFY
+from reportlab.lib.colors import HexColor
+from datetime import datetime
 
 # Import all agents
 from agents.document_agent import run as document_agent
@@ -159,3 +166,121 @@ async def text_to_speech(request: TTSRequest):
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"TTS error: {str(e)}")
+
+
+# PDF Download endpoint
+class PDFRequest(BaseModel):
+    document_info: dict
+    legal_mapping: dict = None
+    simplified: dict = None
+    risks: dict = None
+    next_steps: dict = None
+
+
+@app.post("/download-pdf")
+async def download_pdf(request: dict):
+    """Generate and download PDF report of analysis"""
+    try:
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=0.5*inch, bottomMargin=0.5*inch)
+        
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=24,
+            textColor=HexColor('#dc2626'),
+            spaceAfter=30,
+            alignment=TA_CENTER,
+            fontName='Helvetica-Bold'
+        )
+        
+        heading_style = ParagraphStyle(
+            'CustomHeading',
+            parent=styles['Heading2'],
+            fontSize=16,
+            textColor=HexColor('#991b1b'),
+            spaceAfter=12,
+            spaceBefore=12,
+            fontName='Helvetica-Bold'
+        )
+        
+        normal_style = styles['Normal']
+        normal_style.fontSize = 10
+        normal_style.leading = 14
+        
+        story = []
+        
+        # Title
+        story.append(Paragraph("NyayAI Legal Document Analysis Report", title_style))
+        story.append(Paragraph(f"Generated on: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}", normal_style))
+        story.append(Spacer(1, 0.3*inch))
+        
+        # Document Summary
+        doc_info = request.get('document_info', {})
+        if doc_info:
+            story.append(Paragraph("Document Summary", heading_style))
+            if doc_info.get('summary'):
+                story.append(Paragraph(doc_info['summary'], normal_style))
+            if doc_info.get('document_type'):
+                story.append(Paragraph(f"<b>Document Type:</b> {doc_info['document_type']}", normal_style))
+            story.append(Spacer(1, 0.2*inch))
+        
+        # Risk Assessment
+        risks = request.get('risks', {})
+        if risks and risks.get('overall_risk'):
+            story.append(Paragraph("Risk Assessment", heading_style))
+            story.append(Paragraph(f"<b>Overall Risk Level:</b> {risks['overall_risk']}", normal_style))
+            if risks.get('risk_factors'):
+                story.append(Paragraph("<b>Risk Factors:</b>", normal_style))
+                for factor in risks['risk_factors']:
+                    story.append(Paragraph(f"• {factor}", normal_style))
+            story.append(Spacer(1, 0.2*inch))
+        
+        # Simplified Clauses
+        simplified = request.get('simplified', {})
+        if simplified and simplified.get('simplified_clauses'):
+            story.append(Paragraph("Simplified Explanations", heading_style))
+            for clause in simplified['simplified_clauses']:
+                if clause.get('simple_explanation_en'):
+                    story.append(Paragraph(f"<b>Clause {clause.get('clause_id', 'N/A')}:</b>", normal_style))
+                    story.append(Paragraph(clause['simple_explanation_en'], normal_style))
+                    if clause.get('why_it_matters'):
+                        story.append(Paragraph(f"<b>Why it matters:</b> {clause['why_it_matters']}", normal_style))
+                    story.append(Spacer(1, 0.15*inch))
+            story.append(Spacer(1, 0.2*inch))
+        
+        # Next Steps
+        next_steps = request.get('next_steps', {})
+        if next_steps and next_steps.get('next_steps'):
+            story.append(Paragraph("Recommended Next Steps", heading_style))
+            for i, step in enumerate(next_steps['next_steps'], 1):
+                story.append(Paragraph(f"{i}. {step}", normal_style))
+            story.append(Spacer(1, 0.2*inch))
+        
+        # Legal Mapping
+        legal_mapping = request.get('legal_mapping', {})
+        if legal_mapping and legal_mapping.get('mapped_laws'):
+            story.append(Paragraph("Relevant Laws", heading_style))
+            for item in legal_mapping['mapped_laws']:
+                if item.get('clause_id'):
+                    story.append(Paragraph(f"<b>Clause {item['clause_id']}:</b>", normal_style))
+                if item.get('related_laws'):
+                    for law in item['related_laws']:
+                        story.append(Paragraph(f"• {law}", normal_style))
+            story.append(Spacer(1, 0.2*inch))
+        
+        # Disclaimer
+        story.append(Spacer(1, 0.3*inch))
+        story.append(Paragraph("<i>This is an informational report only and does not constitute legal advice.</i>", normal_style))
+        
+        doc.build(story)
+        buffer.seek(0)
+        
+        return StreamingResponse(
+            buffer,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename=NyayAI-Report-{datetime.now().strftime('%Y%m%d')}.pdf"}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"PDF generation error: {str(e)}")
