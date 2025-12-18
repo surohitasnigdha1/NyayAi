@@ -95,6 +95,11 @@ This modular design improves **accuracy, maintainability, and scalability**.
 * gTTS — Text‑to‑Speech (TTS)
 * Translation APIs
 
+### Frontend
+
+* React.js
+* Tailwind CSS
+
 ---
 
 ## Setup & Installation
