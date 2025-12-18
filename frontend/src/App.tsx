@@ -84,7 +84,7 @@ const App: React.FC = () => {
         <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
           <div>
             <h1 className="font-serif text-xl font-semibold tracking-wide">
-              NyayAI
+             LegalLens-kanoon samjho!
             </h1>
             <p className="text-xs text-red-200">
               Indian Legal Document Analyzer

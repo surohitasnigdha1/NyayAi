@@ -1,9 +1,13 @@
 import os
 from dotenv import load_dotenv
+from io import BytesIO
 
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse, JSONResponse
+from pydantic import BaseModel
 import pdfplumber
+from gtts import gTTS
 
 # Import all agents
 from agents.document_agent import run as document_agent
@@ -11,6 +15,8 @@ from agents.legal_agent import run as legal_agent
 from agents.simplify_agent import run as simplify_agent
 from agents.risk_agent import run as risk_agent
 from agents.next_steps_agent import run as next_agent
+from agents.qa_agent import run as qa_agent
+from utils.openrouter import translate_text
 
 load_dotenv()
 
@@ -77,3 +83,79 @@ async def analyze(document: dict):
         "next_steps": next_info,
         "disclaimer": "Informational only, not legal advice."
     }
+
+
+# Chat/QA endpoint
+class ChatRequest(BaseModel):
+    question: str
+    document_info: dict
+    language: str = "en"
+
+
+@app.post("/chat")
+async def chat(request: ChatRequest):
+    """Answer questions about the legal document"""
+    try:
+        result = qa_agent(
+            question=request.question,
+            document_info=request.document_info,
+            language=request.language
+        )
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Chat error: {str(e)}")
+
+
+# Translation endpoint
+class TranslateRequest(BaseModel):
+    text: str
+    target_language: str
+    source_language: str = None
+
+
+@app.post("/translate")
+async def translate(request: TranslateRequest):
+    """Translate text to target language"""
+    try:
+        translated = translate_text(
+            text=request.text,
+            target_language=request.target_language,
+            source_language=request.source_language
+        )
+        return {"translated_text": translated, "target_language": request.target_language}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Translation error: {str(e)}")
+
+
+# Text-to-Speech endpoint
+class TTSRequest(BaseModel):
+    text: str
+    language: str = "en"
+
+
+@app.post("/text-to-speech")
+async def text_to_speech(request: TTSRequest):
+    """Convert text to speech using gTTS"""
+    try:
+        # Map language codes to gTTS language codes
+        lang_map = {
+            "en": "en",
+            "hi": "hi",
+            "te": "te"
+        }
+        gtts_lang = lang_map.get(request.language, "en")
+        
+        tts = gTTS(text=request.text, lang=gtts_lang, slow=False)
+        
+        # Save to BytesIO buffer
+        audio_buffer = BytesIO()
+        tts.write_to_fp(audio_buffer)
+        audio_buffer.seek(0)
+        
+        return StreamingResponse(
+            audio_buffer,
+            media_type="audio/mpeg",
+            headers={"Content-Disposition": "attachment; filename=speech.mp3"}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"TTS error: {str(e)}")

@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useState } from "react";
+import ChatInterface from "./ChatInterface";
 
 type AnyRecord = Record<string, any>;
 
@@ -6,8 +7,99 @@ interface ResultPageProps {
   data: AnyRecord;
 }
 
+const API_BASE = "http://127.0.0.1:8000";
+
 const ResultPage: React.FC<ResultPageProps> = ({ data }) => {
   const { document_info, simplified, risks, legal_mapping, next_steps } = data;
+  const [translationLang, setTranslationLang] = useState<"en" | "hi" | "te">("en");
+  const [isTranslating, setIsTranslating] = useState(false);
+
+  const translateText = async (text: string): Promise<string> => {
+    if (translationLang === "en" || !text) return text;
+
+    try {
+      const resp = await fetch(`${API_BASE}/translate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: text,
+          target_language: translationLang,
+        }),
+      });
+      
+      if (!resp.ok) {
+        console.error("Translation failed:", resp.status);
+        return text;
+      }
+      
+      const data = await resp.json();
+      return data.translated_text || text;
+    } catch (error) {
+      console.error("Translation error:", error);
+      return text;
+    }
+  };
+
+  const [translatedSummary, setTranslatedSummary] = React.useState<string | null>(null);
+  const [translatedClauses, setTranslatedClauses] = React.useState<Record<string, any>>({});
+  const [translatedSimplified, setTranslatedSimplified] = React.useState<Record<string, any>>({});
+
+  React.useEffect(() => {
+    if (translationLang === "en") {
+      setTranslatedSummary(null);
+      setTranslatedClauses({});
+      setTranslatedSimplified({});
+      return;
+    }
+
+    setIsTranslating(true);
+    
+    // Translate summary
+    if (document_info?.summary) {
+      translateText(document_info.summary).then((translated) => {
+        setTranslatedSummary(translated);
+      });
+    }
+
+    // Translate clauses
+    if (document_info?.clauses) {
+      const clauseTranslations: Record<string, any> = {};
+      Promise.all(
+        document_info.clauses.map(async (clause: AnyRecord) => {
+          const translatedText = await translateText(clause.text || "");
+          const translatedTitle = await translateText(clause.title || "");
+          clauseTranslations[clause.id] = {
+            text: translatedText,
+            title: translatedTitle,
+          };
+        })
+      ).then(() => {
+        setTranslatedClauses(clauseTranslations);
+      });
+    }
+
+    // Translate simplified explanations
+    if (simplified?.simplified_clauses) {
+      const simplifiedTranslations: Record<string, any> = {};
+      Promise.all(
+        simplified.simplified_clauses.map(async (simp: AnyRecord) => {
+          const translatedExplanation = await translateText(simp.simple_explanation_en || "");
+          const translatedWhy = simp.why_it_matters 
+            ? await translateText(simp.why_it_matters)
+            : "";
+          simplifiedTranslations[simp.clause_id] = {
+            explanation: translatedExplanation,
+            why: translatedWhy,
+          };
+        })
+      ).then(() => {
+        setTranslatedSimplified(simplifiedTranslations);
+        setIsTranslating(false);
+      });
+    } else {
+      setIsTranslating(false);
+    }
+  }, [translationLang, document_info?.summary, document_info?.clauses, simplified?.simplified_clauses]);
 
   const riskForClause = (clauseId: string) =>
     risks?.risks?.find((r: AnyRecord) => r.clause_id === clauseId);
@@ -52,6 +144,25 @@ const ResultPage: React.FC<ResultPageProps> = ({ data }) => {
       </header>
 
       <main className="mx-auto max-w-6xl space-y-6 px-6 py-6">
+        {/* Language selector */}
+        <div className="flex items-center justify-between rounded-lg border border-red-100 bg-white p-4 shadow-sm">
+          <div className="flex items-center gap-3">
+            <label className="text-sm font-medium text-gray-700">View in:</label>
+            <select
+              value={translationLang}
+              onChange={(e) => setTranslationLang(e.target.value as "en" | "hi" | "te")}
+              className="rounded border border-gray-300 bg-white px-3 py-1.5 text-sm focus:border-courtred-700 focus:outline-none"
+            >
+              <option value="en">English</option>
+              <option value="hi">हिंदी (Hindi)</option>
+              <option value="te">తెలుగు (Telugu)</option>
+            </select>
+            {isTranslating && (
+              <span className="text-xs text-gray-500">Translating...</span>
+            )}
+          </div>
+        </div>
+
         {/* Top: summary + risk overview */}
         <div className="grid gap-4 md:grid-cols-3">
           <section className="md:col-span-2 rounded-lg border border-red-100 bg-white p-4 shadow-sm">
@@ -59,7 +170,11 @@ const ResultPage: React.FC<ResultPageProps> = ({ data }) => {
               Document Summary
             </h2>
             <p className="mt-3 text-sm">
-              {document_info?.summary || "Summary not available."}
+              {isTranslating
+                ? "Translating..."
+                : translationLang !== "en" && translatedSummary
+                ? translatedSummary
+                : document_info?.summary || "Summary not available."}
             </p>
             <div className="mt-4 flex flex-wrap gap-2 text-xs">
               <span className="rounded-full bg-red-50 px-3 py-1 text-red-800">
@@ -119,7 +234,9 @@ const ResultPage: React.FC<ResultPageProps> = ({ data }) => {
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <h3 className="text-sm font-semibold text-gray-900">
-                        {clause.id.toUpperCase()} · {clause.title}
+                        {clause.id.toUpperCase()} · {translationLang !== "en" && translatedClauses[clause.id]?.title 
+                          ? translatedClauses[clause.id].title 
+                          : clause.title}
                       </h3>
                       {risk && (
                         <span
@@ -132,20 +249,31 @@ const ResultPage: React.FC<ResultPageProps> = ({ data }) => {
                   </div>
 
                   <p className="mt-2 whitespace-pre-line text-xs text-gray-700">
-                    {clause.text}
+                    {translationLang !== "en" && translatedClauses[clause.id]?.text
+                      ? translatedClauses[clause.id].text
+                      : clause.text}
                   </p>
 
                   {simp && (
                     <div className="mt-3 rounded border border-red-50 bg-white/70 p-2 text-xs">
                       <p className="font-semibold text-gray-900">
-                        What this means:
+                        {translationLang === "en" ? "What this means:" : 
+                         translationLang === "hi" ? "इसका क्या मतलब है:" : 
+                         "దీని అర్థం ఏమిటి:"}
                       </p>
                       <p className="mt-1 text-gray-700">
-                        {simp.simple_explanation_en}
+                        {translationLang !== "en" && translatedSimplified[simp.clause_id]?.explanation
+                          ? translatedSimplified[simp.clause_id].explanation
+                          : simp.simple_explanation_en}
                       </p>
                       {simp.why_it_matters && (
                         <p className="mt-1 italic text-gray-600">
-                          Why it matters: {simp.why_it_matters}
+                          {translationLang === "en" ? "Why it matters: " : 
+                           translationLang === "hi" ? "यह क्यों महत्वपूर्ण है: " : 
+                           "ఇది ఎందుకు ముఖ్యమైనది: "}
+                          {translationLang !== "en" && translatedSimplified[simp.clause_id]?.why
+                            ? translatedSimplified[simp.clause_id].why
+                            : simp.why_it_matters}
                         </p>
                       )}
                     </div>
@@ -153,6 +281,13 @@ const ResultPage: React.FC<ResultPageProps> = ({ data }) => {
                 </article>
               );
             })}
+          </div>
+        </section>
+
+        {/* Chat Interface */}
+        <section className="rounded-lg border border-red-100 bg-white p-4 shadow-sm">
+          <div style={{ height: "500px" }}>
+            <ChatInterface documentInfo={document_info} />
           </div>
         </section>
 
