@@ -39,14 +39,14 @@ The system is designed to be **assistive, modular, and scalable**, not a replace
 
 ## Core Features
 
-* 📄 Legal PDF Upload & Parsing
-* 🧠 Plain‑Language Document Summary
-* ⚠️ Important Clause & Risk Detection
-* 💬 Context‑Aware Q/A Chat Interface
-* 🌐 Multilingual Support (English, Hindi, Telugu)
-* 🎙️ Voice‑Based Interaction (STT & TTS)
-* 🤖 Multi‑Agent AI Architecture
-* 🗂️ PDF Report Download
+ Legal PDF Upload & Parsing
+ Plain‑Language Document Summary
+ Important Clause & Risk Detection
+ Context‑Aware Q/A Chat Interface
+ Multilingual Support (English, Hindi, Telugu)
+ Voice‑Based Interaction (STT & TTS)
+ Multi‑Agent AI Architecture
+PDF Report Download
 
 ---
 
@@ -113,27 +113,27 @@ This modular design improves **accuracy, maintainability, and scalability**.
 * Git
 * Virtual environment (recommended)
 
-### 1️⃣ Clone the Repository
+### 1️ Clone the Repository
 
 ```bash
 git clone https://github.com/surohitasnigdha1/NyayAI.git
 cd NyayAI
 ```
 
-### 2️⃣ Create & Activate Virtual Environment
+### 2 Create & Activate Virtual Environment
 
 ```bash
 python -m venv venv
 venv\Scripts\activate
 ```
 
-### 3️⃣ Install Dependencies
+### 3️ Install Dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4️⃣ Environment Variables
+### 4️ Environment Variables
 
 Create a `.env` file and add:
 
@@ -143,7 +143,7 @@ OPENROUTER_API_KEY= your_api_key_here
 DEEPSEEK_MODEL=deepseek/deepseek-chat
 ```
 
-### 5️⃣ Run the Backend
+### 5️ Run the Backend
 
 ```bash
 uvicorn main:app --reload
@@ -151,7 +151,7 @@ uvicorn main:app --reload
 
 Backend will be available at: **[http://127.0.0.1:8000](http://127.0.0.1:8000)**
 
-### 6️⃣ Run the Frontend
+### 6️ Run the Frontend
 
 ```bash
 cd frontend
@@ -161,7 +161,7 @@ npm run dev
 
 ---
 
-## 🧪 Example Use Cases
+##  Example Use Cases
 
 * Reviewing rental agreements
 * Checking employment offer letters
@@ -171,7 +171,7 @@ npm run dev
 
 ---
 
-## ⚠️ Disclaimer
+##  Disclaimer
 
 NyayAI is an **assistive legal awareness tool**.
 
