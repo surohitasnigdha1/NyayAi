@@ -179,9 +179,6 @@ It does **not provide legal advice** and should not replace professional legal c
 
 ---
 
-## Team & Hackathon
 
-Built for **Vibehacks 2.0**
-**Team:** The Drowning Duo
 
 Focused on **real‑world impact, accessibility, and technical depth**.
